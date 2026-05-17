@@ -507,7 +507,7 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/users', veryFytoken, async (req, res) => {
+        app.get('/users',  async (req, res) => {
             const result = await UsersCollection.find().toArray();
             res.send(result)
         });
@@ -868,3 +868,5 @@ if (process.env.VERCEL) {
         console.log(`Example app listening on port ${port}`)
     });
 }
+
+
