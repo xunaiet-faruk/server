@@ -183,7 +183,7 @@ async function run() {
             res.send(parcels);
         });
 
-      
+
         app.get('/admin/parcels/all', veryFytoken, verifyAdmin, async (req, res) => {
             try {
                 const parcels = await ParcelCollection.find({}).sort({ createdAt: -1 }).toArray();
@@ -194,7 +194,7 @@ async function run() {
             }
         });
 
-  
+
         app.get('/admin/dashboard/stats', veryFytoken, verifyAdmin, async (req, res) => {
             try {
                 const allParcels = await ParcelCollection.find({}).toArray();
@@ -256,7 +256,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch('/parcels/:id', veryFytoken,verifyRider, async (req, res) => {
+        app.patch('/parcels/:id', veryFytoken, verifyRider, async (req, res) => {
             const { riderId, riderName, riderEmail, riderPhone, parentId, deliverystatus, assignedAt } = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -604,7 +604,7 @@ async function run() {
             }
         });
 
-        app.patch('/rider/:id', veryFytoken,verifyAdmin, async (req, res) => {
+        app.patch('/rider/:id', veryFytoken, verifyAdmin, async (req, res) => {
             try {
                 const status = req.body.status;
                 const id = req.params.id;
@@ -660,7 +660,7 @@ async function run() {
         // ============= SUPPORT SYSTEM API =============
 
 
-     
+
         app.get('/support/messages', veryFytoken, async (req, res) => {
             try {
                 const email = req.query.email;
@@ -839,11 +839,14 @@ async function run() {
 }
 run().catch(console.dir);
 
-
 app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 
-app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
-})
+if (process.env.VERCEL) {
+    module.exports = app;
+} else {
+    app.listen(port, () => {
+        console.log(`Example app listening on port ${port}`)
+    });
+}
