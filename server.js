@@ -7,79 +7,26 @@ const dns = require('dns');
 const port = process.env.PORT || 5000;
 const crypto = require('crypto');
 
-// const admin = require("firebase-admin");
-
-// let serviceAccount;
-// if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-//     try {
-//         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-//     } catch (error) {
-//         console.error('Unable to parse FIREBASE_SERVICE_ACCOUNT:', error);
-//     }
-// }
-// if (!serviceAccount) {
-//     try {
-//         serviceAccount = require("./zap-shift-firebase-adminsdk.json");
-//     } catch (error) {
-//         console.error('Unable to load local Firebase service account:', error);
-//     }
-// }
-
-// if (!serviceAccount) {
-//     throw new Error('Firebase service account credentials are missing. Set FIREBASE_SERVICE_ACCOUNT or include the JSON file.');
-// }
-
-// admin.initializeApp({
-    // credential: admin.credential.cert(serviceAccount)
-// });
-
-
 function generateTrackingId() {
     const prefix = 'PRCL';
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-
     return `${prefix}-${date}-${random}`;
 }
-
 
 const stripe = require('stripe')(process.env.STRIPE);
 dns.setServers(['1.1.1.1', '8.8.8.8']);
 
-
-const allowedOrigins = [
-    'http://localhost:3000',
-    'https://parcel-managment-web.vercel.app'
-];
 app.use(cors());
 app.use(express.json());
 
-
-// cons = async (req, res, next) => {
-//     const token = req.headers.authorization;
-//     if (!token) {
-//         return res.status(401).send({ meassge: "unauthorized access" })
-//     }
-//     try {
-//         const idToken = token.split(' ')[1];
-//         const decoded = await admin.auth().verifyIdToken(idToken)
-//         req.decoded_email = decoded.email
-//         next()
-//         console.log("hello junaiet", decoded);
-//     } catch (error) {
-//         return res.status(401).send({ meassge: "unauthorized access" })
-//     }
-
-// }
-
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = process.env.MONGO_URI || `mongodb+srv://${process.env.USER_NAME}:${process.env.PASSWORD}@cluster0.kwkb8qp.mongodb.net/?appName=Cluster0`;
+
 if (!uri) {
     throw new Error('MongoDB connection string is missing. Set MONGO_URI or USER_NAME and PASSWORD.');
 }
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -90,7 +37,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
         const ParcelCollection = client.db("ZapshiptDB").collection("parcels");
@@ -99,74 +45,7 @@ async function run() {
         const RiderCollection = client.db("ZapshiptDB").collection("Rider");
         const SupportCollection = client.db("ZapshiptDB").collection("support_messages");
 
-
-        // // Admin verification middleware
-        // cons = async (req, res, next) => {
-        //     try {
-        //         const email = req.decoded_email;
-        //         const user = await UsersCollection.findOne({ email: email });
-
-        //         if (user?.role !== 'admin') {
-        //             return res.status(403).send({
-        //                 success: false,
-        //                 message: 'Forbidden access. Admin rights required.'
-        //             });
-        //         }
-        //         next();
-        //     } catch (error) {
-        //         console.error('Admin verification error:', error);
-        //         res.status(500).send({
-        //             success: false,
-        //             message: 'Internal server error'
-        //         });
-        //     }
-        // };
-
-        // // Verify Rider middleware
-        // cons = async (req, res, next) => {
-        //     try {
-        //         const email = req.decoded_email;
-        //         const user = await UsersCollection.findOne({ email: email });
-
-        //         if (user?.role !== 'rider' && user?.role !== 'admin') {
-        //             return res.status(403).send({
-        //                 success: false,
-        //                 message: 'Forbidden access. Rider rights required.'
-        //             });
-        //         }
-        //         next();
-        //     } catch (error) {
-        //         console.error('Rider verification error:', error);
-        //         res.status(500).send({
-        //             success: false,
-        //             message: 'Internal server error'
-        //         });
-        //     }
-        // };
-
-        // // Verify  any user
-        // const verifyUser = async (req, res, next) => {
-        //     try {
-        //         const email = req.decoded_email;
-        //         const user = await UsersCollection.findOne({ email: email });
-
-        //         if (!user) {
-        //             return res.status(403).send({
-        //                 success: false,
-        //                 message: 'User not found'
-        //             });
-        //         }
-        //         req.user = user;
-        //         next();
-        //     } catch (error) {
-        //         console.error('User verification error:', error);
-        //         res.status(500).send({
-        //             success: false,
-        //             message: 'Internal server error'
-        //         });
-        //     }
-        // };
-
+        // PARCELS API
         app.post('/parcels', async (req, res) => {
             const parcel = req.body;
             const result = await ParcelCollection.insertOne(parcel);
@@ -201,7 +80,6 @@ async function run() {
             res.send(parcels);
         });
 
-
         app.get('/admin/parcels/all', async (req, res) => {
             try {
                 const parcels = await ParcelCollection.find({}).sort({ createdAt: -1 }).toArray();
@@ -212,7 +90,6 @@ async function run() {
             }
         });
 
-
         app.get('/admin/dashboard/stats', async (req, res) => {
             try {
                 const allParcels = await ParcelCollection.find({}).toArray();
@@ -220,7 +97,6 @@ async function run() {
                 const delivered = allParcels.filter(p => p.deliverystatus === 'delivered').length;
                 const pending = allParcels.filter(p => p.deliverystatus === 'pending-pickup' || p.deliverystatus === 'assigned').length;
                 const totalRevenue = allParcels.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
-                const uniqueUsers = new Set(allParcels.map(p => p.senderEmail).filter(Boolean)).size;
                 const activeDeliveries = allParcels.filter(p =>
                     p.deliverystatus === 'pending-pickup' ||
                     p.deliverystatus === 'assigned' ||
@@ -256,7 +132,7 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const result = await ParcelCollection.deleteOne(query);
             res.send(result);
-        })
+        });
 
         app.put('/parcels/:id', async (req, res) => {
             const { id } = req.params;
@@ -363,7 +239,7 @@ async function run() {
             }
         });
 
-        // PAYMENT 
+        // PAYMENT API
         app.post('/create-payment-intent', async (req, res) => {
             const payInfo = req.body;
             const session = await stripe.checkout.sessions.create({
@@ -390,7 +266,7 @@ async function run() {
             });
 
             res.send({ url: session.url });
-        })
+        });
 
         app.patch('/paymentSuccess', async (req, res) => {
             try {
@@ -476,21 +352,19 @@ async function run() {
         });
 
         app.get('/payment', async (req, res) => {
-            const email = req.query.email;
-            console.log("token is here", req.headers);
-            const query = {}
+            const { email } = req.query;
+            const query = {};
+
             if (email) {
-                query.customer_email = email
-            }
-            if (email !== req.decoded_email) {
-                return res.status(403).send({ message: 'forbiden access' })
+                query.customer_email = email;
             }
 
+            // Remove the decoded_email check since we don't have authentication
             const result = await PaymentCollection.find(query).toArray();
-            res.send(result)
-        })
+            res.send(result);
+        });
 
-        // user details
+        // USERS API
         app.post('/users', async (req, res) => {
             const user = req.body;
 
@@ -507,9 +381,9 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/users',  async (req, res) => {
+        app.get('/users', async (req, res) => {
             const result = await UsersCollection.find().toArray();
-            res.send(result)
+            res.send(result);
         });
 
         app.patch('/users/:id', async (req, res) => {
@@ -520,17 +394,17 @@ async function run() {
                 $set: {
                     role: role
                 }
-            }
+            };
             const result = await UsersCollection.updateOne(filter, updatedDoc);
             res.send(result);
-        })
+        });
 
         app.delete('/users/:id', async (req, res) => {
             const { id } = req.params;
             const query = { _id: new ObjectId(id) };
             const result = await UsersCollection.deleteOne(query);
             res.send(result);
-        })
+        });
 
         app.get('/users/:email/role', async (req, res) => {
             const email = req.params.email;
@@ -539,7 +413,7 @@ async function run() {
             res.send({ role: user?.role || 'user' });
         });
 
-        // rider data 
+        // RIDER API
         app.post('/rider', async (req, res) => {
             try {
                 const rider = req.body;
@@ -584,21 +458,21 @@ async function run() {
         });
 
         app.get('/rider', async (req, res) => {
-            const query = {}
+            const query = {};
             if (req.query.status) {
-                query.status = req.query.status
+                query.status = req.query.status;
             }
             if (req.query.district) {
-                query.district = req.query.district
+                query.district = req.query.district;
             }
             if (req.query.workstatus) {
-                query.workstatus = req.query.workstatus
+                query.workstatus = req.query.workstatus;
             }
             console.log('Rider query:', query);
             const result = await RiderCollection.find(query).toArray();
             console.log('Rider results:', result.length);
-            res.send(result)
-        })
+            res.send(result);
+        });
 
         app.get('/rider/check-application/:email', async (req, res) => {
             try {
@@ -675,15 +549,13 @@ async function run() {
             }
         });
 
-        // ============= SUPPORT SYSTEM API =============
-
-
-
+        // SUPPORT API
         app.get('/support/messages', async (req, res) => {
             try {
-                const email = req.query.email;
-                if (email !== req.decoded_email) {
-                    return res.status(403).send({ message: 'Forbidden access' });
+                const { email } = req.query;
+
+                if (!email) {
+                    return res.status(400).send({ message: 'Email query parameter is required' });
                 }
 
                 const messages = await SupportCollection.find({ email: email })
@@ -697,11 +569,10 @@ async function run() {
             }
         });
 
-        // GET - অ্যাডমিনের জন্য সব মেসেজ
         app.get('/admin/support/messages', async (req, res) => {
             try {
-                const email = req.decoded_email;
-                const user = await UsersCollection.findOne({ email: email });
+                const { adminEmail } = req.query;
+                const user = await UsersCollection.findOne({ email: adminEmail });
 
                 if (user?.role !== 'admin') {
                     return res.status(403).send({ message: 'Admin access required' });
@@ -718,14 +589,12 @@ async function run() {
             }
         });
 
-        // POST - নতুন মেসেজ তৈরি
         app.post('/support/messages', async (req, res) => {
             try {
-                const { subject, message, name, role } = req.body;
-                const email = req.decoded_email;
+                const { subject, message, name, role, email } = req.body;
 
-                if (!subject || !message) {
-                    return res.status(400).send({ error: 'Subject and message are required' });
+                if (!subject || !message || !email) {
+                    return res.status(400).send({ error: 'Subject, message, and email are required' });
                 }
 
                 const newMessage = {
@@ -749,12 +618,10 @@ async function run() {
             }
         });
 
-        // POST - মেসেজে রিপ্লাই করা (অ্যাডমিন/সাপোর্ট)
         app.post('/support/messages/:id/reply', async (req, res) => {
             try {
                 const { id } = req.params;
-                const { message, repliedByName, repliedByRole } = req.body;
-                const repliedBy = req.decoded_email;
+                const { message, repliedByName, repliedByRole, repliedBy } = req.body;
 
                 if (!message) {
                     return res.status(400).send({ error: 'Reply message is required' });
@@ -763,7 +630,7 @@ async function run() {
                 const reply = {
                     _id: new ObjectId(),
                     message: message,
-                    repliedBy: repliedBy,
+                    repliedBy: repliedBy || 'admin@example.com',
                     repliedByName: repliedByName || 'Support Team',
                     repliedByRole: repliedByRole || 'admin',
                     createdAt: new Date()
@@ -793,7 +660,6 @@ async function run() {
             }
         });
 
-        // PATCH - মেসেজ স্ট্যাটাস আপডেট
         app.patch('/support/messages/:id/status', async (req, res) => {
             try {
                 const { id } = req.params;
@@ -815,20 +681,17 @@ async function run() {
             }
         });
 
-        // DELETE - মেসেজ ডিলিট করা
         app.delete('/support/messages/:id', async (req, res) => {
             try {
                 const { id } = req.params;
-                const email = req.decoded_email;
+                const { email } = req.query;
 
-                // চেক করা ইউজার নিজের মেসেজ ডিলিট করছে কিনা
                 const message = await SupportCollection.findOne({ _id: new ObjectId(id) });
 
                 if (!message) {
                     return res.status(404).send({ error: 'Message not found' });
                 }
 
-                // অ্যাডমিন বা নিজের মেসেজ ডিলিট করতে পারবে
                 const user = await UsersCollection.findOne({ email: email });
                 if (message.email !== email && user?.role !== 'admin') {
                     return res.status(403).send({ message: 'Forbidden access' });
@@ -847,26 +710,23 @@ async function run() {
             }
         });
 
-        // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // Ensures that the client will close when you finish/error
-        // await client.close();
+        console.log("Successfully connected to MongoDB!");
+    } catch (error) {
+        console.error("Error in run function:", error);
     }
 }
+
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send('Hello World!')
-})
+    res.send('Hello World!');
+});
 
 if (process.env.VERCEL) {
     module.exports = app;
 } else {
     app.listen(port, () => {
-        console.log(`Example app listening on port ${port}`)
+        console.log(`Example app listening on port ${port}`);
     });
 }
-
-
