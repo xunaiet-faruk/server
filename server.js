@@ -3,19 +3,83 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
+const dns = require('dns');
+const port = process.env.PORT || 5000;
 const crypto = require('crypto');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
-// ============= CORS SETUP =============
-app.use(cors({
-    origin: ['http://localhost:3000', 'https://parcel-managment-web.vercel.app'],
-    credentials: true
-}));
+const admin = require("firebase-admin");
+
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+        console.error('Unable to parse FIREBASE_SERVICE_ACCOUNT:', error);
+    }
+}
+if (!serviceAccount) {
+    try {
+        serviceAccount = require("./zap-shift-firebase-adminsdk.json");
+    } catch (error) {
+        console.error('Unable to load local Firebase service account:', error);
+    }
+}
+
+if (!serviceAccount) {
+    throw new Error('Firebase service account credentials are missing. Set FIREBASE_SERVICE_ACCOUNT or include the JSON file.');
+}
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+
+function generateTrackingId() {
+    const prefix = 'PRCL';
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+
+    return `${prefix}-${date}-${random}`;
+}
+
+
+const stripe = require('stripe')(process.env.STRIPE);
+dns.setServers(['1.1.1.1', '8.8.8.8']);
+
+
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://parcel-managment-web.vercel.app'
+];
+app.use(cors());
 app.use(express.json());
 
-// ============= MONGODB SETUP =============
-const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.PASSWORD}@cluster0.kwkb8qp.mongodb.net/?appName=Cluster0`;
 
+const veryFytoken = async (req, res, next) => {
+    const token = req.headers.authorization;
+    if (!token) {
+        return res.status(401).send({ meassge: "unauthorized access" })
+    }
+    try {
+        const idToken = token.split(' ')[1];
+        const decoded = await admin.auth().verifyIdToken(idToken)
+        req.decoded_email = decoded.email
+        next()
+        console.log("hello junaiet", decoded);
+    } catch (error) {
+        return res.status(401).send({ meassge: "unauthorized access" })
+    }
+
+}
+
+
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const uri = process.env.MONGO_URI || `mongodb+srv://${process.env.USER_NAME}:${process.env.PASSWORD}@cluster0.kwkb8qp.mongodb.net/?appName=Cluster0`;
+if (!uri) {
+    throw new Error('MongoDB connection string is missing. Set MONGO_URI or USER_NAME and PASSWORD.');
+}
+
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -24,114 +88,84 @@ const client = new MongoClient(uri, {
     }
 });
 
-// Database collections
-let ParcelCollection, PaymentCollection, UsersCollection, RiderCollection, SupportCollection;
-
-// Helper function
-function generateTrackingId() {
-    const prefix = 'PRCL';
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-    return `${prefix}-${date}-${random}`;
-}
-
-// ============= DATABASE CONNECTION =============
-async function connectDB() {
+async function run() {
     try {
+        // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
-        console.log("✅ Connected to MongoDB!");
 
-        const db = client.db("ZapshiptDB");
-        ParcelCollection = db.collection("parcels");
-        PaymentCollection = db.collection("payment");
-        UsersCollection = db.collection("Users");
-        RiderCollection = db.collection("Rider");
-        SupportCollection = db.collection("support_messages");
+        const ParcelCollection = client.db("ZapshiptDB").collection("parcels");
+        const PaymentCollection = client.db("ZapshiptDB").collection("payment");
+        const UsersCollection = client.db("ZapshiptDB").collection("Users");
+        const RiderCollection = client.db("ZapshiptDB").collection("Rider");
+        const SupportCollection = client.db("ZapshiptDB").collection("support_messages");
 
-        await db.command({ ping: 1 });
-        console.log("✅ Database ready!");
-        return true;
-    } catch (error) {
-        console.error("❌ MongoDB Error:", error);
-        return false;
-    }
-}
 
-// ============= SIMPLE AUTH (NO FIREBASE FOR NOW) =============
-// Firebase সরিয়ে দিচ্ছি temporarily, পরে যোগ করা যাবে
-const veryFytoken = async (req, res, next) => {
-    // Temporary bypass for testing
-    // আপনি চাইলে পরে Firebase যোগ করতে পারেন
-    const token = req.headers.authorization;
-    if (!token) {
-        // For now, allow all requests
-        req.decoded_email = req.headers.email || 'test@example.com';
-        return next();
-    }
-    try {
-        req.decoded_email = 'test@example.com';
-        next();
-    } catch (error) {
-        return res.status(401).send({ message: "unauthorized access" });
-    }
-};
+        // Admin verification middleware
+        const verifyAdmin = async (req, res, next) => {
+            try {
+                const email = req.decoded_email;
+                const user = await UsersCollection.findOne({ email: email });
 
-// Admin middleware (simplified)
-const verifyAdmin = async (req, res, next) => {
-    try {
-        const email = req.decoded_email;
-        const user = await UsersCollection.findOne({ email: email });
-        if (user?.role !== 'admin') {
-            return res.status(403).send({ success: false, message: 'Admin rights required.' });
-        }
-        next();
-    } catch (error) {
-        res.status(500).send({ success: false, message: 'Internal server error' });
-    }
-};
+                if (user?.role !== 'admin') {
+                    return res.status(403).send({
+                        success: false,
+                        message: 'Forbidden access. Admin rights required.'
+                    });
+                }
+                next();
+            } catch (error) {
+                console.error('Admin verification error:', error);
+                res.status(500).send({
+                    success: false,
+                    message: 'Internal server error'
+                });
+            }
+        };
 
-const verifyRider = async (req, res, next) => {
-    try {
-        const email = req.decoded_email;
-        const user = await UsersCollection.findOne({ email: email });
-        if (user?.role !== 'rider' && user?.role !== 'admin') {
-            return res.status(403).send({ success: false, message: 'Rider rights required.' });
-        }
-        next();
-    } catch (error) {
-        res.status(500).send({ success: false, message: 'Internal server error' });
-    }
-};
+        // Verify Rider middleware
+        const verifyRider = async (req, res, next) => {
+            try {
+                const email = req.decoded_email;
+                const user = await UsersCollection.findOne({ email: email });
 
-// ============= STRIPE SETUP =============
-const stripe = require('stripe')(process.env.STRIPE);
+                if (user?.role !== 'rider' && user?.role !== 'admin') {
+                    return res.status(403).send({
+                        success: false,
+                        message: 'Forbidden access. Rider rights required.'
+                    });
+                }
+                next();
+            } catch (error) {
+                console.error('Rider verification error:', error);
+                res.status(500).send({
+                    success: false,
+                    message: 'Internal server error'
+                });
+            }
+        };
 
-// ============= ROUTES =============
+        // Verify  any user
+        const verifyUser = async (req, res, next) => {
+            try {
+                const email = req.decoded_email;
+                const user = await UsersCollection.findOne({ email: email });
 
-// Health check - সবচেয়ে গুরুত্বপূর্ণ
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        timestamp: new Date(),
-        mongodb: client && client.topology && client.topology.isConnected(),
-        message: 'Server is running'
-    });
-});
-
-// Root route
-app.get('/', (req, res) => {
-    res.json({
-        message: 'ZapShift API Server',
-        version: '1.0.0',
-        status: 'running',
-        endpoints: {
-            health: '/api/health',
-            parcels: '/api/parcels',
-            users: '/api/users',
-            riders: '/api/riders'
-        }
-    });
-});
+                if (!user) {
+                    return res.status(403).send({
+                        success: false,
+                        message: 'User not found'
+                    });
+                }
+                req.user = user;
+                next();
+            } catch (error) {
+                console.error('User verification error:', error);
+                res.status(500).send({
+                    success: false,
+                    message: 'Internal server error'
+                });
+            }
+        };
 
         app.post('/parcels', async (req, res) => {
             const parcel = req.body;
@@ -473,7 +507,7 @@ app.get('/', (req, res) => {
             res.send(result);
         });
 
-        app.get('/users',  async (req, res) => {
+        app.get('/users', veryFytoken, async (req, res) => {
             const result = await UsersCollection.find().toArray();
             res.send(result)
         });
@@ -834,4 +868,5 @@ if (process.env.VERCEL) {
         console.log(`Example app listening on port ${port}`)
     });
 }
+
 
