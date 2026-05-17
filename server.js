@@ -7,31 +7,31 @@ const dns = require('dns');
 const port = process.env.PORT || 5000;
 const crypto = require('crypto');
 
-const admin = require("firebase-admin");
+// const admin = require("firebase-admin");
 
-let serviceAccount;
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } catch (error) {
-        console.error('Unable to parse FIREBASE_SERVICE_ACCOUNT:', error);
-    }
-}
-if (!serviceAccount) {
-    try {
-        serviceAccount = require("./zap-shift-firebase-adminsdk.json");
-    } catch (error) {
-        console.error('Unable to load local Firebase service account:', error);
-    }
-}
+// let serviceAccount;
+// if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+//     try {
+//         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+//     } catch (error) {
+//         console.error('Unable to parse FIREBASE_SERVICE_ACCOUNT:', error);
+//     }
+// }
+// if (!serviceAccount) {
+//     try {
+//         serviceAccount = require("./zap-shift-firebase-adminsdk.json");
+//     } catch (error) {
+//         console.error('Unable to load local Firebase service account:', error);
+//     }
+// }
 
-if (!serviceAccount) {
-    throw new Error('Firebase service account credentials are missing. Set FIREBASE_SERVICE_ACCOUNT or include the JSON file.');
-}
+// if (!serviceAccount) {
+//     throw new Error('Firebase service account credentials are missing. Set FIREBASE_SERVICE_ACCOUNT or include the JSON file.');
+// }
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+// admin.initializeApp({
+    // credential: admin.credential.cert(serviceAccount)
+// });
 
 
 function generateTrackingId() {
@@ -55,22 +55,22 @@ app.use(cors());
 app.use(express.json());
 
 
-const veryFytoken = async (req, res, next) => {
-    const token = req.headers.authorization;
-    if (!token) {
-        return res.status(401).send({ meassge: "unauthorized access" })
-    }
-    try {
-        const idToken = token.split(' ')[1];
-        const decoded = await admin.auth().verifyIdToken(idToken)
-        req.decoded_email = decoded.email
-        next()
-        console.log("hello junaiet", decoded);
-    } catch (error) {
-        return res.status(401).send({ meassge: "unauthorized access" })
-    }
+// cons = async (req, res, next) => {
+//     const token = req.headers.authorization;
+//     if (!token) {
+//         return res.status(401).send({ meassge: "unauthorized access" })
+//     }
+//     try {
+//         const idToken = token.split(' ')[1];
+//         const decoded = await admin.auth().verifyIdToken(idToken)
+//         req.decoded_email = decoded.email
+//         next()
+//         console.log("hello junaiet", decoded);
+//     } catch (error) {
+//         return res.status(401).send({ meassge: "unauthorized access" })
+//     }
 
-}
+// }
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -100,72 +100,72 @@ async function run() {
         const SupportCollection = client.db("ZapshiptDB").collection("support_messages");
 
 
-        // Admin verification middleware
-        const verifyAdmin = async (req, res, next) => {
-            try {
-                const email = req.decoded_email;
-                const user = await UsersCollection.findOne({ email: email });
+        // // Admin verification middleware
+        // cons = async (req, res, next) => {
+        //     try {
+        //         const email = req.decoded_email;
+        //         const user = await UsersCollection.findOne({ email: email });
 
-                if (user?.role !== 'admin') {
-                    return res.status(403).send({
-                        success: false,
-                        message: 'Forbidden access. Admin rights required.'
-                    });
-                }
-                next();
-            } catch (error) {
-                console.error('Admin verification error:', error);
-                res.status(500).send({
-                    success: false,
-                    message: 'Internal server error'
-                });
-            }
-        };
+        //         if (user?.role !== 'admin') {
+        //             return res.status(403).send({
+        //                 success: false,
+        //                 message: 'Forbidden access. Admin rights required.'
+        //             });
+        //         }
+        //         next();
+        //     } catch (error) {
+        //         console.error('Admin verification error:', error);
+        //         res.status(500).send({
+        //             success: false,
+        //             message: 'Internal server error'
+        //         });
+        //     }
+        // };
 
-        // Verify Rider middleware
-        const verifyRider = async (req, res, next) => {
-            try {
-                const email = req.decoded_email;
-                const user = await UsersCollection.findOne({ email: email });
+        // // Verify Rider middleware
+        // cons = async (req, res, next) => {
+        //     try {
+        //         const email = req.decoded_email;
+        //         const user = await UsersCollection.findOne({ email: email });
 
-                if (user?.role !== 'rider' && user?.role !== 'admin') {
-                    return res.status(403).send({
-                        success: false,
-                        message: 'Forbidden access. Rider rights required.'
-                    });
-                }
-                next();
-            } catch (error) {
-                console.error('Rider verification error:', error);
-                res.status(500).send({
-                    success: false,
-                    message: 'Internal server error'
-                });
-            }
-        };
+        //         if (user?.role !== 'rider' && user?.role !== 'admin') {
+        //             return res.status(403).send({
+        //                 success: false,
+        //                 message: 'Forbidden access. Rider rights required.'
+        //             });
+        //         }
+        //         next();
+        //     } catch (error) {
+        //         console.error('Rider verification error:', error);
+        //         res.status(500).send({
+        //             success: false,
+        //             message: 'Internal server error'
+        //         });
+        //     }
+        // };
 
-        // Verify  any user
-        const verifyUser = async (req, res, next) => {
-            try {
-                const email = req.decoded_email;
-                const user = await UsersCollection.findOne({ email: email });
+        // // Verify  any user
+        // const verifyUser = async (req, res, next) => {
+        //     try {
+        //         const email = req.decoded_email;
+        //         const user = await UsersCollection.findOne({ email: email });
 
-                if (!user) {
-                    return res.status(403).send({
-                        success: false,
-                        message: 'User not found'
-                    });
-                }
-                req.user = user;
-                next();
-            } catch (error) {
-                console.error('User verification error:', error);
-                res.status(500).send({
-                    success: false,
-                    message: 'Internal server error'
-                });
-            }
-        };
+        //         if (!user) {
+        //             return res.status(403).send({
+        //                 success: false,
+        //                 message: 'User not found'
+        //             });
+        //         }
+        //         req.user = user;
+        //         next();
+        //     } catch (error) {
+        //         console.error('User verification error:', error);
+        //         res.status(500).send({
+        //             success: false,
+        //             message: 'Internal server error'
+        //         });
+        //     }
+        // };
 
         app.post('/parcels', async (req, res) => {
             const parcel = req.body;
@@ -202,7 +202,7 @@ async function run() {
         });
 
 
-        app.get('/admin/parcels/all', veryFytoken, verifyAdmin, async (req, res) => {
+        app.get('/admin/parcels/all', async (req, res) => {
             try {
                 const parcels = await ParcelCollection.find({}).sort({ createdAt: -1 }).toArray();
                 res.send(parcels);
@@ -213,7 +213,7 @@ async function run() {
         });
 
 
-        app.get('/admin/dashboard/stats', veryFytoken, verifyAdmin, async (req, res) => {
+        app.get('/admin/dashboard/stats', async (req, res) => {
             try {
                 const allParcels = await ParcelCollection.find({}).toArray();
 
@@ -274,7 +274,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch('/parcels/:id', veryFytoken, verifyRider, async (req, res) => {
+        app.patch('/parcels/:id', async (req, res) => {
             const { riderId, riderName, riderEmail, riderPhone, parentId, deliverystatus, assignedAt } = req.body;
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -301,7 +301,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch('/parcels/deliverystatus/:id', veryFytoken, async (req, res) => {
+        app.patch('/parcels/deliverystatus/:id', async (req, res) => {
             try {
                 const { deliverystatus, acceptedBy, rejectedBy, rejectionReason, pickedUpBy, deliveredBy } = req.body;
                 const id = req.params.id;
@@ -475,7 +475,7 @@ async function run() {
             }
         });
 
-        app.get('/payment', veryFytoken, async (req, res) => {
+        app.get('/payment', async (req, res) => {
             const email = req.query.email;
             console.log("token is here", req.headers);
             const query = {}
@@ -507,12 +507,12 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/users', veryFytoken, async (req, res) => {
+        app.get('/users',  async (req, res) => {
             const result = await UsersCollection.find().toArray();
             res.send(result)
         });
 
-        app.patch('/users/:id', veryFytoken, async (req, res) => {
+        app.patch('/users/:id', async (req, res) => {
             const { id } = req.params;
             const role = req.body.role;
             const filter = { _id: new ObjectId(id) };
@@ -622,7 +622,7 @@ async function run() {
             }
         });
 
-        app.patch('/rider/:id', veryFytoken, verifyAdmin, async (req, res) => {
+        app.patch('/rider/:id', async (req, res) => {
             try {
                 const status = req.body.status;
                 const id = req.params.id;
@@ -679,7 +679,7 @@ async function run() {
 
 
 
-        app.get('/support/messages', veryFytoken, async (req, res) => {
+        app.get('/support/messages', async (req, res) => {
             try {
                 const email = req.query.email;
                 if (email !== req.decoded_email) {
@@ -698,7 +698,7 @@ async function run() {
         });
 
         // GET - অ্যাডমিনের জন্য সব মেসেজ
-        app.get('/admin/support/messages', veryFytoken, async (req, res) => {
+        app.get('/admin/support/messages', async (req, res) => {
             try {
                 const email = req.decoded_email;
                 const user = await UsersCollection.findOne({ email: email });
@@ -719,7 +719,7 @@ async function run() {
         });
 
         // POST - নতুন মেসেজ তৈরি
-        app.post('/support/messages', veryFytoken, async (req, res) => {
+        app.post('/support/messages', async (req, res) => {
             try {
                 const { subject, message, name, role } = req.body;
                 const email = req.decoded_email;
@@ -750,7 +750,7 @@ async function run() {
         });
 
         // POST - মেসেজে রিপ্লাই করা (অ্যাডমিন/সাপোর্ট)
-        app.post('/support/messages/:id/reply', veryFytoken, async (req, res) => {
+        app.post('/support/messages/:id/reply', async (req, res) => {
             try {
                 const { id } = req.params;
                 const { message, repliedByName, repliedByRole } = req.body;
@@ -794,7 +794,7 @@ async function run() {
         });
 
         // PATCH - মেসেজ স্ট্যাটাস আপডেট
-        app.patch('/support/messages/:id/status', veryFytoken, async (req, res) => {
+        app.patch('/support/messages/:id/status', async (req, res) => {
             try {
                 const { id } = req.params;
                 const { status } = req.body;
@@ -816,7 +816,7 @@ async function run() {
         });
 
         // DELETE - মেসেজ ডিলিট করা
-        app.delete('/support/messages/:id', veryFytoken, async (req, res) => {
+        app.delete('/support/messages/:id', async (req, res) => {
             try {
                 const { id } = req.params;
                 const email = req.decoded_email;
