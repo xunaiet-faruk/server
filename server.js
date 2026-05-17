@@ -144,7 +144,7 @@ async function run() {
             }
         };
 
-        // Verify User middleware (any authenticated user)
+        // Verify  any user
         const verifyUser = async (req, res, next) => {
             try {
                 const email = req.decoded_email;
