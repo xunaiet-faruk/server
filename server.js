@@ -17,7 +17,15 @@ function generateTrackingId() {
 const stripe = require('stripe')(process.env.STRIPE);
 dns.setServers(['1.1.1.1', '8.8.8.8']);
 
-app.use(cors());
+app.use(cors(
+    {
+        origin: [
+            "http://localhost:3000",
+            "https://parcel-managment-web.vercel.app"
+        ],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        credentials: true
+    }))
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
