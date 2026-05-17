@@ -9,7 +9,25 @@ const crypto = require('crypto');
 
 const admin = require("firebase-admin");
 
-const serviceAccount = require("./zap-shift-firebase-adminsdk.json");
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+        console.error('Unable to parse FIREBASE_SERVICE_ACCOUNT:', error);
+    }
+}
+if (!serviceAccount) {
+    try {
+        serviceAccount = require("./zap-shift-firebase-adminsdk.json");
+    } catch (error) {
+        console.error('Unable to load local Firebase service account:', error);
+    }
+}
+
+if (!serviceAccount) {
+    throw new Error('Firebase service account credentials are missing. Set FIREBASE_SERVICE_ACCOUNT or include the JSON file.');
+}
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -56,10 +74,10 @@ const veryFytoken = async (req, res, next) => {
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const { url } = require('inspector');
-const { trace } = require('console');
-const { del } = require('framer-motion/client');
-const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.PASSWORD}@cluster0.kwkb8qp.mongodb.net/?appName=Cluster0`;
+const uri = process.env.MONGO_URI || `mongodb+srv://${process.env.USER_NAME}:${process.env.PASSWORD}@cluster0.kwkb8qp.mongodb.net/?appName=Cluster0`;
+if (!uri) {
+    throw new Error('MongoDB connection string is missing. Set MONGO_URI or USER_NAME and PASSWORD.');
+}
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
