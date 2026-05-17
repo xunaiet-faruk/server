@@ -583,6 +583,58 @@ app.patch('/rider/:id', async (req, res) => {
         });
     }
 });
+// DELETE RIDER - Add this endpoint to your backend
+app.delete('/rider/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { email } = req.query; 
+        if (email) {
+            const admin = await UsersCollection.findOne({ email: email });
+            if (!admin || admin.role !== 'admin') {
+                return res.status(403).send({
+                    success: false,
+                    message: 'Admin access required'
+                });
+            }
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const rider = await RiderCollection.findOne(query);
+
+        if (!rider) {
+            return res.status(404).send({
+                success: false,
+                message: 'Rider not found'
+            });
+        }
+
+        const result = await RiderCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+            return res.status(404).send({
+                success: false,
+                message: 'Rider not found'
+            });
+        }
+
+        // Also update user role if needed
+        await UsersCollection.updateOne(
+            { email: rider.email },
+            { $set: { role: 'user' } }
+        );
+
+        res.status(200).send({
+            success: true,
+            message: 'Rider deleted successfully'
+        });
+    } catch (error) {
+        console.error("Error deleting rider:", error);
+        res.status(500).send({
+            success: false,
+            error: error.message
+        });
+    }
+});
 
 // SUPPORT API
 app.get('/support/messages', async (req, res) => {
@@ -721,27 +773,61 @@ app.delete('/support/messages/:id', async (req, res) => {
         const { id } = req.params;
         const { email } = req.query;
 
+        // এমএল validator - email না থাকলে এরর দিবেন না, বরং সব messages দেখাবেন না
+        if (!email) {
+            // যদি email না থাকে, তবুও ডিলিট করবেন না, এরর দিবেন
+            return res.status(400).send({
+                success: false,
+                message: 'Email is required to delete message'
+            });
+        }
+
         const message = await SupportCollection.findOne({ _id: new ObjectId(id) });
 
         if (!message) {
-            return res.status(404).send({ error: 'Message not found' });
+            return res.status(404).send({
+                success: false,
+                error: 'Message not found'
+            });
         }
 
+        // Check if user owns the message or is admin
         const user = await UsersCollection.findOne({ email: email });
+
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // অনুমতি চেক: শুধু মেসেজের মালিক অথবা অ্যাডমিন ডিলিট করতে পারবে
         if (message.email !== email && user?.role !== 'admin') {
-            return res.status(403).send({ message: 'Forbidden access' });
+            return res.status(403).send({
+                success: false,
+                message: 'You do not have permission to delete this message'
+            });
         }
 
         const result = await SupportCollection.deleteOne({ _id: new ObjectId(id) });
 
         if (result.deletedCount === 0) {
-            return res.status(404).send({ error: 'Message not found' });
+            return res.status(404).send({
+                success: false,
+                error: 'Message not found'
+            });
         }
 
-        res.send({ success: true });
+        res.status(200).send({
+            success: true,
+            message: 'Message deleted successfully'
+        });
     } catch (error) {
         console.error("Error deleting message:", error);
-        res.status(500).send({ error: error.message });
+        res.status(500).send({
+            success: false,
+            error: error.message
+        });
     }
 });
 
