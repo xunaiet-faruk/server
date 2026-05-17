@@ -861,5 +861,12 @@ app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 
+if (process.env.VERCEL) {
+    module.exports = app;
+} else {
+    app.listen(port, () => {
+        console.log(`Example app listening on port ${port}`)
+    });
+}
 
 
