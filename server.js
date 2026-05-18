@@ -43,7 +43,6 @@ const client = new MongoClient(uri, {
     }
 });
 
-// Global collections (will be set after MongoDB connects)
 let ParcelCollection, PaymentCollection, UsersCollection, RiderCollection, SupportCollection;
 let dbConnected = false;
 
@@ -773,9 +772,7 @@ app.delete('/support/messages/:id', async (req, res) => {
         const { id } = req.params;
         const { email } = req.query;
 
-        // এমএল validator - email না থাকলে এরর দিবেন না, বরং সব messages দেখাবেন না
         if (!email) {
-            // যদি email না থাকে, তবুও ডিলিট করবেন না, এরর দিবেন
             return res.status(400).send({
                 success: false,
                 message: 'Email is required to delete message'
@@ -791,7 +788,6 @@ app.delete('/support/messages/:id', async (req, res) => {
             });
         }
 
-        // Check if user owns the message or is admin
         const user = await UsersCollection.findOne({ email: email });
 
         if (!user) {
@@ -801,7 +797,6 @@ app.delete('/support/messages/:id', async (req, res) => {
             });
         }
 
-        // অনুমতি চেক: শুধু মেসেজের মালিক অথবা অ্যাডমিন ডিলিট করতে পারবে
         if (message.email !== email && user?.role !== 'admin') {
             return res.status(403).send({
                 success: false,
@@ -836,7 +831,6 @@ app.get('/', (req, res) => {
     res.send('Hello World! Server is running.');
 });
 
-// Export for Vercel, listen locally
 if (process.env.VERCEL) {
     module.exports = app;
 } else {
