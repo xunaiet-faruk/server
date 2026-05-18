@@ -582,7 +582,7 @@ app.patch('/rider/:id', async (req, res) => {
         });
     }
 });
-// DELETE RIDER - Add this endpoint to your backend
+
 app.delete('/rider/:id', async (req, res) => {
     try {
         const { id } = req.params;
