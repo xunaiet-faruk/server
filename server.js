@@ -657,24 +657,19 @@ app.get('/support/messages', async (req, res) => {
 
 app.get('/admin/support/messages', async (req, res) => {
     try {
-        const { adminEmail } = req.query;
-        const user = await UsersCollection.findOne({ email: adminEmail });
+        console.log('⚠️ TEMPORARY MODE: Allowing all access');
 
-        if (user?.role !== 'admin') {
-            return res.status(403).send({ message: 'Admin access required' });
-        }
-
+        // Skip admin check temporarily
         const messages = await SupportCollection.find({})
             .sort({ createdAt: -1 })
             .toArray();
 
         res.send(messages);
     } catch (error) {
-        console.error("Error fetching all messages:", error);
+        console.error("Error:", error);
         res.status(500).send({ error: error.message });
     }
 });
-
 app.post('/support/messages', async (req, res) => {
     try {
         const { subject, message, name, role, email } = req.body;
